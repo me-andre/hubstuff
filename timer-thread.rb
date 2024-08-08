@@ -3,6 +3,7 @@ class Timer
     @interval = interval
     @block = block
     @stopped = false
+    @mutex = Mutex.new
   end
 
   def start
@@ -11,10 +12,12 @@ class Timer
       times = 0
       loop do
         break if @stopped
-        @block.call times
+        @mutex.synchronize do
+          @block.call times
+        end
         times += 1
         time_now = Process.clock_gettime Process::CLOCK_MONOTONIC, :float_second
-        next_execution_time = start_time + (times + 1) * @interval
+        next_execution_time = start_time + times * @interval
         sleep_time = next_execution_time - time_now
         sleep_time = 0 if sleep_time < 0
         sleep sleep_time
@@ -35,9 +38,3 @@ class ::Enumerator
     timer
   end
 end
-
-timer = 5.times.per_second do |i|
-  puts "#{i + 1} times"
-end
-sleep 1
-timer.stop
